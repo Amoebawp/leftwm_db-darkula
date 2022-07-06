@@ -1,0 +1,51 @@
+#!/bin/sh
+export SCRIPTPATH
+SCRIPTPATH="$( cd "$(dirname "$0")" || exit; pwd -P )"
+
+# Down the last running theme
+if [ -f "/tmp/leftwm-theme-down" ]; then
+    /tmp/leftwm-theme-down
+    rm /tmp/leftwm-theme-down
+fi
+ln -s "$SCRIPTPATH"/down /tmp/leftwm-theme-down
+
+# keybindings daemon
+sxhkd -c ~/.config/leftwm/sxhkd/sxhkdrc &
+
+# diversity of apps to start
+nm-applet &
+pamac-tray &
+xfce4-power-manager &
+numlockx on &
+blueberry-tray &
+discord --start-minimized &
+/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+/usr/lib/xfce4/notifyd/xfce4-notifyd &
+volumeicon &
+run xfce4-clipman
+unclutter -idle 2 -keystroke &
+flameshot &
+
+# Boot picom or compton if it exists
+picom --experimental-backends --config $HOME/.config/picom.conf &
+# > /dev/null &
+
+# Set the theme.toml config
+leftwm command "LoadTheme $SCRIPTPATH/theme.toml"
+
+# Set background
+# feh --bg-fill "$SCRIPTPATH"/background.jpg
+nitrogen --restore &
+# variety &
+
+dunst &
+
+index=0
+leftwm-state -q -n -t "$SCRIPTPATH"/sizes.liquid | sed -r '/^\s*$/d' | while read -r width
+do
+  barname="mainbar$index"
+  monitor="$(polybar -m | awk -v i="$(( index + 1 ))" 'NR==i{print}' | sed s/:.*// | tr -d '\n')"
+  monitor=$monitor width=$(( width - 16 )) polybar -c "$SCRIPTPATH"/polybar.config $barname &
+  monitor=${monitors[index]} width=$(( width - 16 )) polybar -c "$SCRIPTPATH"/polybarbottom.config $barname &> /dev/null &
+  index=$((index+1))
+done
